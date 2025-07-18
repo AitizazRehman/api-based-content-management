@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Content;
+use App\Http\Requests\StoreContentRequest;
+use App\Http\Requests\UpdateContentRequest;
 use Illuminate\Http\Request;
 
 class ContentController extends Controller
@@ -12,19 +14,9 @@ class ContentController extends Controller
         return Content::all();
     }
 
-    public function store(Request $request)
+    public function store(StoreContentRequest $request)
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'body' => 'required|string',
-            'allowed_countries' => 'nullable|array',
-            'allowed_countries.*' => 'string|size:2',
-            'start_time' => 'nullable|date',
-            'end_time' => 'nullable|date|after:start_time',
-            'is_active' => 'boolean'
-        ]);
-
-        $content = Content::create($validated);
+        $content = Content::create($request->validated());
 
         return response()->json($content, 201);
     }
@@ -34,19 +26,9 @@ class ContentController extends Controller
         return $content;
     }
 
-    public function update(Request $request, Content $content)
+    public function update(UpdateContentRequest $request, Content $content)
     {
-        $validated = $request->validate([
-            'title' => 'sometimes|string|max:255',
-            'body' => 'sometimes|string',
-            'allowed_countries' => 'sometimes|array',
-            'allowed_countries.*' => 'string|size:2',
-            'start_time' => 'sometimes|date',
-            'end_time' => 'sometimes|date|after:start_time',
-            'is_active' => 'sometimes|boolean'
-        ]);
-
-        $content->update($validated);
+        $content->update($request->validated());
 
         return response()->json($content);
     }
@@ -57,21 +39,23 @@ class ContentController extends Controller
 
         return response()->json(null, 204);
     }
+
     public function publicIndex(Request $request)
     {
         $countryCode = $request->attributes->get('country_code');
+
         return Content::where('is_active', 1)
             ->where(function ($query) use ($countryCode) {
                 $query->whereNull('allowed_countries')
-                    ->orWhereJsonContains('allowed_countries', $countryCode);
+                      ->orWhereJsonContains('allowed_countries', $countryCode);
             })
             ->where(function ($query) {
                 $query->whereNull('start_time')
-                    ->orWhere('start_time', '<=', now());
+                      ->orWhere('start_time', '<=', now());
             })
             ->where(function ($query) {
                 $query->whereNull('end_time')
-                    ->orWhere('end_time', '>=', now());
+                      ->orWhere('end_time', '>=', now());
             })
             ->get();
     }
