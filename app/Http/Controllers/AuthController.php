@@ -2,21 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\LoginRequest;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
 use App\Services\SessionTracker;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
+        $validated = $request->validated();
 
         $user = User::create([
             'name' => $validated['name'],
@@ -32,12 +30,10 @@ class AuthController extends Controller
             'user' => $user
         ], 201);
     }
-    public function login(Request $request)
+
+    public function login(LoginRequest $request)
     {
-        $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required'
-        ]);
+        $credentials = $request->validated();
 
         if (!Auth::attempt($credentials)) {
             return response()->json([
@@ -47,15 +43,17 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
         $token = $user->createToken('auth_token')->plainTextToken;
+
         $session = app(SessionTracker::class);
         $session->startSession($request->user()->id, $request->attributes->get('country_code'));
+
         return response()->json([
             'access_token' => $token,
             'token_type' => 'Bearer',
             'session_id' => session()->getId(),
-
         ]);
     }
+
     public function logout(Request $request)
     {
         $sessionId = session()->getId();
